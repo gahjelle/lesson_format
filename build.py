@@ -92,7 +92,6 @@ def pandoc_html(input_file, style, language, theme, variables, commands, output_
     
     working_dir = os.path.dirname(output_file)
 
-
     subprocess.check_call(cmd, cwd=working_dir)
 
 def phantomjs_pdf(input_url, output_file):
@@ -155,7 +154,7 @@ def build_project(term, project, language, theme, output_dir, project_url):
     notes = []
 
     if project.note:
-        notes.extend(process_file(project.note, note_style, language, theme, output_dir))
+        notes.extend(process_file(project.note, note_style, language, theme, output_dir, project_url))
     
     materials = None
     if project.materials:
@@ -172,10 +171,10 @@ def build_project(term, project, language, theme, output_dir, project_url):
     )
 
 
-def build_extra(term, extra, language, theme, output_dir):
+def build_extra(term, extra, language, theme, output_dir, base_url):
     note = []
     if extra.note:
-        note.extend(process_file(extra.note, note_style, language, theme, output_dir))
+        note.extend(process_file(extra.note, note_style, language, theme, output_dir, base_url))
     materials = None
     if extra.materials:
         zipfilename = "%s_%d_%s_%s.zip" % (term.id, term.number, extra.name, language.translate("resources"))
@@ -394,9 +393,10 @@ def build(repositories, theme, all_languages, output_dir):
 
             extras = []
             
+            extra_url = os.path.join(base_url, language.code, "%s.%d" % (term.id, term.number))
             for r in term.extras:
                 print "Building Extra:", r.name
-                extras.append(build_extra(term, r, language, theme, term_dir))
+                extras.append(build_extra(term, r, language, theme, term_dir, extra_url))
 
             term = Term(
                 id = term.id,
@@ -417,7 +417,7 @@ def build(repositories, theme, all_languages, output_dir):
         project_count[language_code]=count
 
     stop_webserver(server_pid)
-    print "Building", theme.name, "index"
+    print "Building", theme.name, "index:", output_dir
 
     sorted_languages =  []
     for lang in sorted(project_count.keys(), key=lambda x:project_count[x], reverse=True):
@@ -427,7 +427,7 @@ def build(repositories, theme, all_languages, output_dir):
     make_index(sorted_languages,all_languages[theme.language], theme, output_dir)
     print "Complete"
     
-# Manifest, Theme, Language, and Project Header Parsing
+
 
 def parse_manifest(filename):
     with open(filename) as fh:
@@ -437,6 +437,7 @@ def parse_manifest(filename):
 
     projects = []
     for p in json_manifest['projects']:
+	print p['filename']
         filename = expand_glob(base_dir, p['filename'], one_file=True)
         materials = expand_glob(base_dir, p.get('materials',[]))
         embeds = expand_glob(base_dir, p.get('embeds',[]))
